@@ -19,7 +19,7 @@
         }
         .calendar {
             display: grid;
-            grid-template-columns: repeat(7, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 1rem;
             padding: 1rem;
             max-width: 1200px;
@@ -83,8 +83,8 @@
 </head>
 <body>
     <header>
-        <h1>GYM</h1>
-        <p>Daily checklist for goals</p>
+        <h1>Recovery & Weight Loss Plan</h1>
+        <p>Your daily checklist for fitness and recovery goals</p>
     </header>
 
     <div class="calendar" id="calendar"></div>
@@ -98,13 +98,13 @@
 
     <script>
         const checklistItems = [
-            ["Warm-up (5-10 min)", "Bench Press: 4 sets x 10-12 reps", "Shoulder Press: 3 sets x 10-12 reps", "Tricep Dips: 3 sets x 10-15 reps", "Cool-down stretches"],
-            ["Cardio: 20-30 min cycling", "Foam rolling", "Stretching", "Optional yoga"],
-            ["Warm-up (5 min)", "Lat Pulldown: 4 sets x 10-12 reps", "Seated Row: 3 sets x 10-12 reps", "Plank: Hold 30-45 seconds", "Cool-down stretches"],
-            ["Cardio: 20-40 min cycling", "Leg Press: 3 sets x 15-20 reps", "Glute Bridges: 3 sets x 12-15 reps", "Stretch hamstrings and quads"],
-            ["Kettlebell Deadlifts: 3 sets x 12 reps", "Medicine Ball Slams: 3 sets x 15 reps", "Resistance Band Steps: 3 sets x 15 steps/side", "Side Plank: 20-30 seconds"],
-            ["HIIT: 20 min cycling intervals", "Russian Twists: 3 sets x 20 reps", "Modified Mountain Climbers: 3 sets x 30 seconds", "Cool-down stretches"],
-            ["Rest or yoga session", "Hydrate well", "Stretch for flexibility"]
+            { title: "Upper Body", tasks: ["Warm-up (5-10 min)", "Bench Press: 4 sets x 10-12 reps", "Shoulder Press: 3 sets x 10-12 reps", "Tricep Dips: 3 sets x 10-15 reps", "Cool-down stretches"] },
+            { title: "Active Recovery", tasks: ["Cardio: 20-30 min cycling", "Foam rolling", "Stretching", "Optional yoga"] },
+            { title: "Back & Core", tasks: ["Warm-up (5 min)", "Lat Pulldown: 4 sets x 10-12 reps", "Seated Row: 3 sets x 10-12 reps", "Plank: Hold 30-45 seconds", "Cool-down stretches"] },
+            { title: "Cardio & Legs", tasks: ["Cardio: 20-40 min cycling", "Leg Press: 3 sets x 15-20 reps", "Glute Bridges: 3 sets x 12-15 reps", "Stretch hamstrings and quads"] },
+            { title: "Functional Training", tasks: ["Kettlebell Deadlifts: 3 sets x 12 reps", "Medicine Ball Slams: 3 sets x 15 reps", "Resistance Band Steps: 3 sets x 15 steps/side", "Side Plank: 20-30 seconds"] },
+            { title: "HIIT & Core", tasks: ["HIIT: 20 min cycling intervals", "Russian Twists: 3 sets x 20 reps", "Modified Mountain Climbers: 3 sets x 30 seconds", "Cool-down stretches"] },
+            { title: "Rest or Yoga", tasks: ["Rest or yoga session", "Hydrate well", "Stretch for flexibility"] }
         ];
 
         const calendar = document.getElementById('calendar');
@@ -114,7 +114,6 @@
         const modalChecklist = document.getElementById('modal-checklist');
         const closeBtn = document.getElementById('close-btn');
 
-        // Get today's date
         const today = new Date();
 
         function formatDate(date) {
@@ -128,7 +127,7 @@
                 date.setDate(startDate.getDate() + i);
                 days.push({
                     date: formatDate(date),
-                    tasks: checklistItems[i % 7]
+                    ...checklistItems[i % 7]
                 });
             }
             return days;
@@ -136,17 +135,38 @@
 
         let daysToDisplay = generateDays(today, 60);
 
+        function saveProgress(date, checkedTasks) {
+            localStorage.setItem(date, JSON.stringify(checkedTasks));
+        }
+
+        function loadProgress(date) {
+            return JSON.parse(localStorage.getItem(date)) || [];
+        }
+
         function updateCalendar() {
             calendar.innerHTML = '';
             daysToDisplay.forEach((day, index) => {
                 const dayDiv = document.createElement('div');
                 dayDiv.className = 'day';
-                dayDiv.innerHTML = `<h3>${day.date}</h3>`;
+                dayDiv.innerHTML = `<h3>${day.title}<br>${day.date}</h3>`;
                 dayDiv.addEventListener('click', () => {
-                    modalTitle.textContent = `Workout Plan for ${day.date}`;
-                    modalChecklist.innerHTML = day.tasks.map(task => `<label><input type='checkbox'> ${task}</label><br>`).join('');
+                    modalTitle.textContent = `Workout Plan for ${day.title} (${day.date})`;
+                    const savedProgress = loadProgress(day.date);
+                    modalChecklist.innerHTML = day.tasks
+                        .map((task, i) => `<label><input type='checkbox' ${savedProgress.includes(i) ? 'checked' : ''} data-index='${i}'> ${task}</label><br>`)
+                        .join('');
                     modal.style.display = 'block';
                     overlay.style.display = 'block';
+
+                    const checkboxes = modalChecklist.querySelectorAll('input[type="checkbox"]');
+                    checkboxes.forEach((checkbox) => {
+                        checkbox.addEventListener('change', () => {
+                            const checkedTasks = Array.from(checkboxes)
+                                .filter((cb) => cb.checked)
+                                .map((cb) => parseInt(cb.getAttribute('data-index')));
+                            saveProgress(day.date, checkedTasks);
+                        });
+                    });
 
                     // Check if it's the last day of the month
                     if (index === daysToDisplay.length - 1) {
@@ -158,7 +178,6 @@
                             } else {
                                 if (confirm("Do you want to adjust your plan?")) {
                                     alert("Redirecting you to the chat for updates.");
-                                    // Replace this alert with redirection logic to the chat.
                                 }
                             }
                         }, 500);
